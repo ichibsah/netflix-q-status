@@ -1,6 +1,6 @@
 # Netflix Q Status
 
-Greasemonkey script (that works with Firefox and Chrome) for DVD subscribers to add the latest movies to your Netflix queue quick and easy! Shows your movies queue status on popular movie websites and has a simple "Add to Queue" button.
+Greasemonkey script (that works with Firefox and Chrome) for Netflix DVD subscribers to add the latest movies to your Netflix queue quick and easy! Shows your movies queue status on popular movie websites and has a simple "Add to Queue" button.
 
 ## Screenshots
 ![alt text](http://i.imgur.com/mYb7YvN.png "add to queue and streaming play button example")
