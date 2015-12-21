@@ -2,14 +2,13 @@
 // @name          Netflix Q Status
 // @namespace     http://www.pantz.org/
 // @description   Show Netflix queue status on websites. Add to queue button.
-// @version       1.0
+// @version       1.1
 // @include       http://www.rottentomatoes.com/*
 // @include       http://www.imdb.com/*
 // @include       http://www.metacritic.com/*
 // @include       http://www.fandango.com/*
 // @grant         GM_addStyle
 // @grant         GM_xmlhttpRequest
-// @grant         GM_log
 // ==/UserScript==
 
 // style for pop up box
@@ -22,7 +21,7 @@ var style1 = '#popuptopnqs { height:auto; width:350; background:#b9090b;' +
 // add the GM style
 GM_addStyle(style1);
 
-//frame detection. detects top frame. 
+// frame detection. detects top frame. 
 // needed to stop multiple code exec in all (i)frames
 var frameless = (window === window.top)?true:false;
 
@@ -33,31 +32,43 @@ if (typeof(sessionStorage) == 'undefined' ) {
   // add the default red icon and be done. no queue icons.
   addIcons();
 } else {
-  // if key is there execute
-  if (sessionStorage.getItem("nqsSessionStatus") != null) {
-    // if frameless is true we only execute code in the top frame
+  // try to get last update time from storage
+  var lastUpdateTime = sessionStorage.getItem("NqsLastUpdateTime");
+  
+  // if time key DNE (null obj), don't try update because getQueue never worked
+  if (lastUpdateTime != null) {
+   // if frameless is true we only execute code in the top frame
     if (frameless) {
       // get current time
       var currentTime = unixTime();
-      // get session time
-      var sessionTime = sessionStorage.getItem("nqsSessionStatus");
       // get delta of times
-      var deltaTime = currentTime - sessionTime; 
+      var deltaTime = currentTime - lastUpdateTime; 
       // update movie cache if greater than set # of secs
-      if (deltaTime > 360) { 
+ 
+      if (deltaTime > 360) {
         // cache expired. get new netflix queue info
-        getQueue(); 
+        getQueue();
+        // set timer and see if getQueue returns faster than timer
+        // if not add icons, if so getQueue clears timer
+        var queueTimer = setTimeout(
+                           function() {
+                             addIcons(); 
+                             queueTimer = undefined;
+                           },
+                           8000
+                         );        
+      } else {
+        // cache still good, just add icons to page
+        addIcons(); 
       }
-      // add icons to page
-      addIcons(); 
     }
-  //session key was not there
   } else {
+    // session key was not there, means we were returned null obj
     // if frameless is true we only execute code in the top frame
     if (frameless) {
-      //load netflix queue into cache.
-      getQueue();
-      // set timer and see if getQueue returns faster than timer
+      // fire to get url, which then fires getQueue if successful
+      getRssId();
+      // set timer and see if getRssId & getQueue return faster than timer
       // if not add icons. if so getQueue clears timer
       var queueTimer = setTimeout(
                          function() {
@@ -206,12 +217,12 @@ function CreateLink(moviename) {
     NfxImg.setAttribute("src",NfxImgIcoN);
   } else {
     // is supported. check if in queue.
-    if ( sessionStorage.getItem(normMovieName(moviename)) == null ) {
-      // not in queue use default icon
-      NfxImg.setAttribute("src",NfxImgIcoN);
-    } else {
+    if ( sessionStorage.getItem(normMovieName(moviename)) == "null" ) {
       // exists! use Q icon
       NfxImg.setAttribute("src",NfxImgIcoQ);
+    } else {
+      // not in queue use default icon
+      NfxImg.setAttribute("src",NfxImgIcoN);
     }
   }
   // place image in span tag  
@@ -284,7 +295,8 @@ function getMovie(event,moviename) {
   // waaaaay to long to timeout with onerror
   var errorTimer = setTimeout(
                      function(){
-                       return errorTimeout(event,moviename)},
+                       return errorTimeout(event,moviename)
+                     },
                      10000
                    );
   // make the movie search url for the http request
@@ -481,49 +493,99 @@ function getMovie(event,moviename) {
       } 
     }
   });
-} 
+}
 
-function getQueue() {
-  // make the http request to netflix.
+function getRssId() {
+  // if we have rssid then bail 
+  if (haveRssId() === true) { return null; }
+
+  // make the http request to netflix RSS Url Page.
   GM_xmlhttpRequest({
     method: "GET",
-    url: "http://dvd.netflix.com/Queue",
+    url: "http://dvd.netflix.com/RSSFeeds",
     onerror: function(response) {
       // log error
-      GM_log("We got an error response from Netflix queue page");
+      console.log("We got an error response from Netflix RSS Url page");
     },
     onload: function(response) {
-      // if we recieved a page back OK then parse and show it
+      // if we recieved a page back OK then parse
       if (response.statusText == "OK") {
-        // parse Netflix queue page with regex. Suck out movie(s) names.
+        // parse Netflix rss page. suck out rss url id.
 
-        // get movie section
-        var wRegex = /<td class="tt"><span class="title"><a.*?">.*?<\/a>/g;
-
-        // copy response obj as FF won't let us  modify it
+        // make rss id regex         
+        var wRegex =  /\/QueueRSS\?id=(\w+)"/;
+        
+        // set response 
 	      var responseTxt = response.responseText;
-        // normalize chars
-        responseTxt = responseTxt.replace(/\f|\v|\r|\n|\t/g," ");
-        //c lean spaces
-        responseTxt = responseTxt.replace(/ {2,}/g," ");
 
-         // run regex. put matched values in array 
-        movieLinePat = responseTxt.match(wRegex); 
+        // run regex. put matched values in array 
+        movieLinePat = responseTxt.match(wRegex);
+
+        if (movieLinePat != null) {
+          // store netflix rss id in sessionStorage
+          sessionStorage.setItem('NqsNetflixRssId', movieLinePat[1]);
+          // fire getQueue to retrieve queue items from rss feed
+          getQueue();
+        } else {
+          sessionStorage.setItem('NqsNetflixRssId', "null");
+          console.log('Failed to find RSS Url ID with RegEx');
+        } 
+      } else {
+          console.log([
+            "Non OK response from Netflix server to get RSS id. Response was:",
+            response.status,
+            response.statusText,
+            response.finalUrl,
+          ].join("\n"));
+      }
+    }
+  });
+}
+                    
+function getQueue() {
+  // if we don't have rssid then bail 
+  if (haveRssId() === false) { return null; }
+
+  var rssId = sessionStorage.getItem('NqsNetflixRssId');
+  var rssUrl = "http://dvd.netflix.com/QueueRSS?id=" + rssId;
+  
+  // make the http request to netflix
+  GM_xmlhttpRequest({
+    method: "GET",
+    url: rssUrl,
+    onerror: function(response) {
+      // log error
+      console.log( "We got an error response from Netflix queue page.");
+    },
+    onload: function(response) {
+      // if server response OK, then parse page with regex and grab move titles
+      if (response.statusText == "OK") {
+
+        // copy response obj
+	      var responseTxt = response.responseText;
+        
+        // regex for grabbing movie title lines in rss
+        var rssTitleLineRegex = /<title>\d+.*<\/title>/g;
+
+        // regex for pulling just movie title
+        var rssTitleRegex = /<title>\d+- (.*?)<\/title>/;
+        
+        // run regex, put matched title lines in array 
+        movieLinePat = responseTxt.match(rssTitleLineRegex);
 
         // if regex worked store movie names, else log error and just add icons
         if (movieLinePat != null) {
           // loop through regex array. set as session vars
           for (var i = 0; i < movieLinePat.length; i++) {
-            // movie name regex
-            var wRegex = /<td class="tt"><span class="title"><a.*">(.*?)<\/a>/;
-            // suck out movie name from matched line
-            movieNamePat = movieLinePat[i].match(wRegex);
             // put normalized movie name in session store
-            sessionStorage.setItem(normMovieName(movieNamePat[1]), "null");
+            movieNamePat = rssTitleRegex.exec(movieLinePat[i]);
+            if (movieNamePat != null) {
+              sessionStorage.setItem(normMovieName(movieNamePat[1]), "null");
+            }
           }
 
-          //set last connection time
-          sessionStorage.setItem("nqsSessionStatus",unixTime());
+          // set last connection time
+          sessionStorage.setItem("NqsLastUpdateTime",unixTime());
 
           // if queue req beats timer clear it and add icons
           if ( queueTimer != undefined ) {
@@ -532,25 +594,43 @@ function getQueue() {
             // add icons
             addIcons();
           }
+          
         // regex failed to get movie title log error          
         } else { 
-            GM_log("The Netflix queue RegEx is broken");
+            console.log("The Netflix queue RegEx is broken");
         }
 
       // We did not get an OK response from the server. Log error.
       } else {
-            GM_log("Non OK response from Netflix server for queue info");
+          console.log([
+            "Non OK response from Netflix server for RSS info. Response was:",
+            response.status,
+            response.statusText,
+            response.finalUrl,
+          ].join("\n"));
       }
     }
   });
 }
 
+function haveRssId() {
+  // try to query RssId object from session storage
+  var rssId = sessionStorage.getItem('NqsNetflixRssId');
+
+  // if null string or obj returns, then we don't have it
+  if (rssId === "null" || rssId === null) {
+    return false;
+  } else {
+    return true;
+  }
+}
+
 function hideBox() {
   // get popup box element id
   var PopUpId = document.getElementById('popupnqs');
-  //hide the popup box
+  // hide the popup box
   PopUpId.style.visibility = "hidden";
-  //remove the div from the DOM
+  // remove the div from the DOM
   PopUpId.parentNode.removeChild(PopUpId);
 }
 
@@ -616,7 +696,7 @@ function showBox(event,boxBody) {
   var mY = event.pageY;
   // get div (box) width X
   var dX = popupWrapper.clientWidth;
-  //get div (box) height Y
+  // get div (box) height Y
   var dY = popupWrapper.clientHeight;
   // window size Y
   var sY = window.innerHeight;
@@ -639,7 +719,7 @@ function showBox(event,boxBody) {
   // pop down and left from cursor
   if ( mX>=qW && mY<=qH ) { pX = mX-dX; pY = mY; }
 
-  //if we can't get mouse chords then default to popup in center of screen
+  // if we can't get mouse chords then default to popup in center of screen
   if (typeof pX === 'undefined' && typeof pY === 'undefined') {
     // center box
     pX = sX/2-dX/2+oX; pY = sY/2-dY/2+oY;
