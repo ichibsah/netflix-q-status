@@ -10,7 +10,7 @@ Greasemonkey script (that works with Firefox and Chrome) for Netflix DVD subscri
 ![alt text](http://i.imgur.com/iQ9qwDo.png "save to queue button example")
 
 
-**Warning: This script only works for Netflix subscribers logged into their Netflix account.**
+**Warning: This script only works for Netflix DVD subscribers logged into their Netflix account.**
 
 ## Description
 This script will put an icon next to each movie title on many popular movie websites. A "Q" icon will appear if the movie is in your Netflix DVD queue. A "N" icon will appear if it is not. Clicking one these icons will popup a box showing the movies name, box cover, description, rating, and the status of the movie in your Netflix queue.
@@ -52,19 +52,19 @@ Follow the instructions on how to [Download and install Greasemonkey](http://www
 ## Permissions
 This script will ask for full access to the sites listed in the sites section. All it does is read the html coming back from the site and find where it can put icon.
 
-You click said icon it will send a query to Netflix DVD search and see if it can find a match. Which it then puts the top match in the pop up box.
+You click said icon, and it will send a query to Netflix DVD search and see if it can find a match. Which it then puts the top match in the pop up box.
 
 It also grabs your DVD queue from Netflix every 5 mins so it can have a list to compare the movie titles to and tell you what movies are already in your queue with the Q icon.
 
-NO funny business at all. If you don't believe me read the source yourself.
+NO funny business at all. If you don't believe me read the code yourself.
 
 ## Notes/Suggestions
 * Make sure your logged into your Netflix account before using this script. It uses the Netflix DVD search page info to populate the popup box.
-* The movie title in the popup is a link to the Netfix search page. Click the link if you want to see the results of the actual Netflix search page.
+* The top of the popup has a link to the Netflix page for the title..
 * The movie that comes up in the popup box is the first movie listing from the Netflix search page. On really obscure movies or movies Netflix has a hard time finding you will get the wrong movie in the popup box. The script is only as good as the Netflix search engine. Don't worry, most of the time it's correct.
 * Use the movie box picture and the description to make sure you are viewing the correct movie you want. Comparing the pictures and descriptions assures your putting the correct movie in your queue.
 * Movie names/titles from Netflix and movie websites don't always match up. Sometimes you will not see a Q icon when you should. Just click the icon to check the status.
-* The script is not perfect and you will see icons next to things that are not movie titles sometimes. Most sites don't use an exact scheme for their movie title elements/urls so it's hard to get the right tags every time. Deal with it or submit a better Xpath to fix it.
+* The script is not perfect and you will see icons next to things that are not movie titles sometimes. Other times you will not see a icon next to a title. Most sites don't use an exact scheme for their movie title elements/urls so it's hard to get the right tags every time. Deal with it or submit a better Xpath to fix it.
 
 ## Reason for the script
 Before writing the script I would hit "In Theaters" and "Coming Soon" sections of the popular movie websites (rottentomatoes.com and such) so I could add movies to my queue before they go to DVD. I would also look at other movies that have been out for a while and check their ratings to see if they were worth putting in my queue. That led to a lot of annoying copying and pasting titles into the Netflix search box. Sites like canistream.it are good quick checks of where you can get movies, but you don't have things like top lists, curated lists from users, etc. Also, you can't look at the respective sites ratings on said movie with sites like canistream.it.
