@@ -2,7 +2,7 @@
 // @name          Netflix Q Status
 // @namespace     http://www.pantz.org/
 // @description   Show Netflix DVD queue status on websites. Add to queue button.
-// @version       1.2
+// @version       1.3
 // @include       /^https?://www\.rottentomatoes\.com/.*$/ 
 // @include       /^https?://www\.imdb\.com/.*$/ 
 // @include       /^https?://www\.metacritic\.com/.*$/ 
@@ -150,8 +150,11 @@ function addIcons () {
   // only run if hostname matches
   if (hostName.match(/metacritic\.com/i)) {
     // XPath query parts   
-    var xp = '//*[contains(@class,"_title") or contains(@class,"releases")]' +
-             ' //a[contains(@href,"/movie/") or contains(@href,"/tv/")]';
+    var xp = '//td[contains(@class,"title_wrapper")]' +
+             '//div[contains(@class,"title")]' +
+             '//a[contains(@href,"/movie/")] | ' +
+             '//div[contains(@class,"product_title")]' +
+             '//a[contains(@href,"/tv/")]';
     // XPath query
     var Snap1 = document.evaluate(xp,
                                   document,
