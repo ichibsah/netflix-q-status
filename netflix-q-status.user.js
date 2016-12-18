@@ -1,12 +1,12 @@
-// ==UserScript==
+﻿// ==UserScript==
 // @name          Netflix Q Status
 // @namespace     http://www.pantz.org/
 // @description   Show Netflix DVD queue status on websites. Add to queue button.
-// @version       1.3
-// @include       /^https?://www\.rottentomatoes\.com/.*$/ 
-// @include       /^https?://www\.imdb\.com/.*$/ 
-// @include       /^https?://www\.metacritic\.com/.*$/ 
-// @include       /^https?://www\.fandango\.com/.*$/ 
+// @version       1.4
+// @include       /^https?://www\.rottentomatoes\.com/.*$/
+// @include       /^https?://www\.imdb\.com/.*$/
+// @include       /^https?://www\.metacritic\.com/.*$/
+// @include       /^https?://www\.fandango\.com/.*$/
 // @grant         GM_addStyle
 // @grant         GM_xmlhttpRequest
 // ==/UserScript==
@@ -25,24 +25,24 @@ var style1 = '#popuptopnqs { height:auto; width:350; background:#b9090b;' +
 // add the GM style
 GM_addStyle(style1);
 
-// frame detection. detects top frame. 
+// frame detection. detects top frame.
 // needed to stop multiple code exec in all (i)frames
 var frameless = (window === window.top)?true:false;
 
 // check html5 storage support
-if (typeof(sessionStorage) == 'undefined' ) { 
-  // html5 session storage not supported. set var 
+if (typeof(sessionStorage) == 'undefined' ) {
+  // html5 session storage not supported. set var
   var sStorage = false;
   // add the default red icon and be done. no queue icons.
   addIcons();
   debug && console.log("HTML5 session storage not supported");
 } else {
-  // we have HTML5 storage 
+  // we have HTML5 storage
   var sStorage = true;
   debug && console.log("HTML5 session storage supported");
   // try to get last update time from storage
   var lastUpdateTime = sessionStorage.getItem("NqsLastUpdateTime");
-  
+
   // if time key DNE (null obj), don't try update because getQueue never worked
   if (lastUpdateTime != null) {
    // if frameless is true we only execute code in the top frame
@@ -50,9 +50,9 @@ if (typeof(sessionStorage) == 'undefined' ) {
       // get current time
       var currentTime = unixTime();
       // get delta of times
-      var deltaTime = currentTime - lastUpdateTime; 
+      var deltaTime = currentTime - lastUpdateTime;
       // update movie cache if greater than set # of secs
- 
+
       if (deltaTime > 360) {
         debug && console.log("Netflix Queue cache expired. Refreshing...");
         // cache expired. get new netflix queue info
@@ -61,14 +61,14 @@ if (typeof(sessionStorage) == 'undefined' ) {
         // if not add icons, if so getQueue clears timer
         var queueTimer = setTimeout(
                            function() {
-                             addIcons(); 
+                             addIcons();
                              queueTimer = undefined;
                            },
                            8000
-                         );        
+                         );
       } else {
         // cache still good, just add icons to page
-        addIcons(); 
+        addIcons();
       }
     }
   } else {
@@ -81,7 +81,7 @@ if (typeof(sessionStorage) == 'undefined' ) {
       // if not add icons. if so getQueue clears timer
       var queueTimer = setTimeout(
                          function() {
-                           addIcons(); 
+                           addIcons();
                            queueTimer = undefined;
                          },
                          8000
@@ -98,7 +98,7 @@ function addIcons () {
   /***** begin rottentomatoes.com *****/
   // only run if hostname matches
   if (hostName.match(/rottentomatoes\.com/i)) {
-    // XPath query parts 
+    // XPath query parts
     var xp = '//td[contains(@class, "middle_col")]//a | ' +
              '//td//a[contains(@class, "unstyled articleLink")]'
     // XPath query
@@ -119,7 +119,7 @@ function addIcons () {
   /***** begin imdb.com *****/
   // only run if hostname matches
   if (hostName.match(/imdb\.com/i)) {
-    // XPath query, any anchor tag with /title 
+    // XPath query, any anchor tag with /title
     var Snap1 = document.evaluate("//a[contains(@href,'/title')]",
                                   document,
                                   null,XPathResult.UNORDERED_NODE_SNAPSHOT_TYPE,
@@ -127,34 +127,37 @@ function addIcons () {
 
     for (var i = 0; i < Snap1.snapshotLength; i++) {
       var elm1 = Snap1.snapshotItem(i);
-      // regexes in strings with double escaped escape chars \ is \\ 
+      // regexes in strings with double escaped escape chars \ is \\
       var regx1 = '^(?:https?\\:\\/\\/www\\.imdb|\\/).*title\\/tt';
       var regx2 = '\\d+(\\?ref|\\/\\?ref|/\\/\\?pf|\\?pf|\\/$)';
       var urlRegex = new RegExp(regx1 + regx2,'i');
       // if no match go to next link
-      if (!urlRegex.test(elm1)) { 
-        continue; 
+      if (!urlRegex.test(elm1)) {
+        continue;
       }
       // suck out movie name
       var moviename = elm1.innerHTML;
       // get rid bad titles
-      if (moviename.match('<')) { 
-        continue; 
+      if (moviename.match('<')) {
+        continue;
       }
       elm1.parentNode.insertBefore(CreateLink(moviename), elm1);
     }
   }
   /***** end imdb.com *****/
- 
+
   /***** begin metacritic.com *****/
   // only run if hostname matches
   if (hostName.match(/metacritic\.com/i)) {
-    // XPath query parts   
-    var xp = '//td[contains(@class,"title_wrapper")]' +
+    // XPath query parts
+    var xp = '//div[contains(@class,"title_wrapper")]' +
+             '//a[contains(@href,"/movie/")]//span |' +
+             '//td[contains(@class,"title_wrapper")]' +
              '//div[contains(@class,"title")]' +
-             '//a[contains(@href,"/movie/")] | ' +
+             '//a[contains(@href,"/movie/")] |' +
              '//div[contains(@class,"product_title")]' +
-             '//a[contains(@href,"/tv/")]';
+             '//a[contains(@href,"/tv/")] |' +
+             '//a[contains(@class,"title") and contains(@href,"/movie/")]';
     // XPath query
     var Snap1 = document.evaluate(xp,
                                   document,
@@ -165,7 +168,9 @@ function addIcons () {
     for (var i = 0; i < Snap1.snapshotLength; i++) {
       var elm1 = Snap1.snapshotItem(i);
       var moviename = elm1.innerHTML;
-      elm1.parentNode.insertBefore(CreateLink(moviename), elm1);
+      // work around span tag in anchor tag messing up link
+      var gp = elm1.parentNode;
+      gp.parentNode.insertBefore(CreateLink(moviename), gp.nextSibling);
     }
   }
   /***** end metacritic.com *****/
@@ -173,7 +178,7 @@ function addIcons () {
   /***** begin fandango.com *****/
   //only run if hostname matches
   if (hostName.match(/fandango\.com/i)) {
-    // XPath query parts   
+    // XPath query parts
     var xp = '//a[contains(@class,"visual-title dark") or' +
              ' contains(@class,"light")]';
     // XPath query
@@ -225,7 +230,7 @@ function CreateLink(moviename) {
                    '0yQuIhWgHSJKkOUBrzWUbwJsxiDYtLLQG6gfpbQHgVMpmgE9rge0uNAIA' +
                    'zJXyhmsBxphagLPK1lrmSmGt5Wk6ZaH1bqCH1Kle4ziOUd3o38DD+99bc' +
                    'AAAsyjEBAG9suSsWAEwWK8ZbDYO8AdN/UvYu2+1+AAAAABJRU5ErkJggg' +
-                   '=='; 
+                   '==';
   // the "in queue" icon
   var NfxImgIcoQ = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAY' +
                    'AAAAf8/9hAAAACXRFWHRYLUluZGV4ADC0w5xiAAAAeklEQVQ4jWM8fPjw' +
@@ -247,15 +252,15 @@ function CreateLink(moviename) {
       NfxImg.setAttribute("src",NfxImgIcoN);
     }
   }
-  // place image in span tag  
+  // place image in span tag
   newLink.appendChild(NfxImg);
-  // attach a listener to our image. on click run popup box function. 
-  // use anon function. pass movie name and page event status 
+  // attach a listener to our image. on click run popup box function.
+  // use anon function. pass movie name and page event status
   newLink.addEventListener(
     "click",
     function(event){
       getMovie(event,moviename)
-    }, 
+    },
     false
   );
   // add space after image
@@ -285,12 +290,12 @@ function EncodeMovieName(str) {
   str = str.replace(/\*/g,"%2A");
   str = str.replace(/\-/g,"%2D");
   return str;
-} 
+}
 
 // normailize all movie names for better in queue detection
-function normMovieName(str) { 
+function normMovieName(str) {
   // lowercase movie name
-  str = str.toLowerCase(); 
+  str = str.toLowerCase();
   // replace any clutter with a blank
   // regexes in strings with double escaped escape chars \ is \\
   var regx1 = '[:\\\'\\"\\.\\?\\!\\$\\+\\#@&-]|\\s+|the |and |<[^>]*>';
@@ -300,15 +305,15 @@ function normMovieName(str) {
   str = str.replace(mnregx,"");
   return str;
 }
-      
+
 // generate unix time for session value
 function unixTime () {
   // get unix time
-  var unixTime = Math.round(new Date().getTime() / 1000); 
+  var unixTime = Math.round(new Date().getTime() / 1000);
   return unixTime;
 }
 
-// log response info 
+// log response info
 function repInfo(rep,msg) {
 console.log([msg,
             rep.finalUrl,
@@ -321,7 +326,7 @@ function showErrorBox(msg,event,movie) {
   // msg and event required. movie is optional
   var body = '<div id="popuptopnqs"><b>ERROR</b></div>' +
   '<div style="padding:7px;">' + msg;
-  
+
   if (movie != undefined) {
     var url = 'Here is a manual link to your movie search: ' +
     '<a href="' + htmlSearchUrl(movie) + '">' + movie + '</a><hr>';
@@ -331,8 +336,8 @@ function showErrorBox(msg,event,movie) {
   showBox(event,body);
 }
 
-function getJson(event,moviename) { 
-  // Set our own connect error timeout because GM_xmlhttpRequest takes 
+function getJson(event,moviename) {
+  // Set our own connect error timeout because GM_xmlhttpRequest takes
   // waaaaay to long to timeout with onerror
   var errorTimer = setTimeout(
                      function(){
@@ -351,19 +356,19 @@ function getJson(event,moviename) {
       // log connection failure to console
       debug && repInfo(rep,"JSON query request failed!!");
     },
-   
+
     onload: function(rep) {
       // clear our timer because onload returned fast enough
       clearTimeout(errorTimer);
       // debug server response to console log
-      debug && repInfo(rep,"JSON query request finished");                      
+      debug && repInfo(rep,"JSON query request finished");
       // if we recieved a page back OK then parse and show it
-      if (rep.statusText == "OK") { 
-        // try to parse response as pure JSON 
+      if (rep.statusText == "OK") {
+        // try to parse response as pure JSON
         var mjson = JSON.parse(rep.responseText);
-        
-        // check for rowMovies key in JSON, else throw error box      
-        if (mjson.hasOwnProperty('rowMovies')) { 
+
+        // check for rowMovies key in JSON, else throw error box
+        if (mjson.hasOwnProperty('rowMovies')) {
           debug && console.log("Found top key in JSON. Looking good...");
           var rm = mjson.rowMovies[0];
 
@@ -396,7 +401,7 @@ function getJson(event,moviename) {
           // title mpaa rating, always provided
           if (rm.hasOwnProperty('mpaaRating')) {
             var rating = rm.mpaaRating;
-          }          
+          }
           // title image, always provided
           if (rm.hasOwnProperty('imgSrc')) {
             var titleImg = rm.imgSrc;
@@ -432,9 +437,9 @@ function getJson(event,moviename) {
             var titleSyn = rm.synopsis;
           }
 
-          // show box if we have title and queue state else show error 
+          // show box if we have title and queue state else show error
           if (title != undefined && qState != undefined) {
-            // set button status 
+            // set button status
             // in Q link
             if (qState.match('(IN_QUEUE|IN_DVD)')) {
               status = '<span id="nonqsstatus" title="' + qHref +
@@ -443,37 +448,37 @@ function getJson(event,moviename) {
               ' font-size:13px;font-weight:bold;">In Queue</span>';
             // add link
             } else if (qState.match('ADD')) {
-              status = '<span id="nqsstatus" title="' + qHref + 
+              status = '<span id="nqsstatus" title="' + qHref +
               '"style="text-decoration:none;border:1px solid black;' +
               'padding:5px;background:#b9090b;color:#fff;' +
               'font-size:13px;font-weight:bold;">Add</span>';
             // save link
             } else if (qState.match('SAVE')) {
-              status = '<span id="nqsstatus" title="' + qHref + 
+              status = '<span id="nqsstatus" title="' + qHref +
               '"style="text-decoration:none; border:1px solid black;' +
               'padding:5px;background:#8bb109;color:#fff;font-size:13px;' +
               'font-weight:bold;">Save</span>';
             // home link
             } else if (qState.match('AT_HOME')) {
-              status = '<span id="nonqsstatus" title="' + qHref + 
-              '"style="text-decoration:none; border:1px solid black;' + 
+              status = '<span id="nonqsstatus" title="' + qHref +
+              '"style="text-decoration:none; border:1px solid black;' +
               'padding:5px; background:#f6f5f4;color:#333;font-size:13px;' +
               'font-weight:bold;">At Home</span>';
             // Discs link
             } else if (qState.match('CHOOSE_DISCS')) {
-              status = '<span id="nonqsstatus" title="' + titleUrl + 
+              status = '<span id="nonqsstatus" title="' + titleUrl +
               '" style="text-decoration:none; border:1px solid black;' +
               'padding:5px; background:#fff;color:#000; font-size:13px;' +
-              'font-weight:bold;"><a href="' + qHref + 
+              'font-weight:bold;"><a href="' + qHref +
               '" target="new">Choose Discs</a></span>';
-            } 
-            
+            }
+
             // throw in stream link if found
-            if (playHref != undefined) { 
+            if (playHref != undefined) {
               status = status + ' <span style="text-decoration:none;' +
               'border:1px solid black; padding:5px; background:#fff;' +
-              'color:#333; font-size:13px;font-weight:bold;"><a href="' + 
-              playHref + '">Play</a></span>'; 
+              'color:#333; font-size:13px;font-weight:bold;"><a href="' +
+              playHref + '">Play</a></span>';
             }
 
             // set rating state
@@ -488,7 +493,7 @@ function getJson(event,moviename) {
             } else {
               yr = '';
             }
-            // set duration 
+            // set duration
             if (duration != undefined) {
               dur = '<b>Duration</b>: ' + duration + '<br>';
             } else {
@@ -518,11 +523,11 @@ function getJson(event,moviename) {
                          "to <a href=" + nqsUrl + ">here</a> to check " +
                          "for any update.";
               // show error for failed match
-              showErrorBox(msg1+msg2,event,moviename);           
+              showErrorBox(msg1+msg2,event,moviename);
               debug && console.log(msg1);
           }
         } else {
-            // show error for failed key match 
+            // show error for failed key match
             var msg1 = "Top key in the JSON output did not match.";
             var msg2 = "The addon might need to be updated. Please go " +
                        "to <a href=" + nqsUrl + ">here</a> to check " +
@@ -534,7 +539,7 @@ function getJson(event,moviename) {
       } else { // We did not get an OK response from the server. Show error.
           var msg = 'There was a problem connecting to ' +
                     'the Nexflix JSON search page. ';
-          showErrorBox(msg,event,moviename); 
+          showErrorBox(msg,event,moviename);
       }
     }
   });
@@ -552,12 +557,12 @@ function refreshCreds(event,moviename) {
         var pat = rep.responseText.match(/title\=\"Sign In\"/);
 
         // if the pattern worked then we are not signed in. error and stop.
-        if (pat != null) { 
+        if (pat != null) {
           var msg = 'You are not signed into Netflix. ' +
-          'This script only works for Netflix DVD members. ' + 
+          'This script only works for Netflix DVD members. ' +
           'Please sign in and try again.';
           showErrorBox(msg,event);
-          return false; 
+          return false;
         }
 
         if (sStorage === true) {
@@ -580,13 +585,13 @@ function getMovie(event,moviename) {
 
     // if time key DNE (null obj), then check cache
     if (serverKeepAlive != null) {
-    
+
       // get current time
       var currentTime = unixTime();
 
       // get delta of times
       var deltaTime = currentTime - serverKeepAlive;
-    
+
       // JSON endpoint creds times out after about 5.5mins
       // have to hit a main page to re-up creds before JSON call
       // if last time we clicked icon is higher than # secs, hit main page
@@ -595,11 +600,11 @@ function getMovie(event,moviename) {
         // do keep alive refresh
         refreshCreds(event,moviename);
       } else {
-        debug && console.log("Keep alive cache still good. Getting JSON..."); 
+        debug && console.log("Keep alive cache still good. Getting JSON...");
         // cache still good just grab JSON
         getJson(event,moviename);
       }
-  
+
     } else {
         // call was null we don't have a time, run and set time
         debug && console.log("No keep alive time found. Setting...");
@@ -615,7 +620,7 @@ function getMovie(event,moviename) {
 }
 
 function getRssId() {
-  // if we have rssid then bail 
+  // if we have rssid then bail
   if (haveRssId() === true) { return null; }
 
   // make the http request to netflix RSS Url Page.
@@ -631,13 +636,13 @@ function getRssId() {
       if (rep.statusText == "OK") {
         // parse Netflix rss page. suck out rss url id.
 
-        // make rss id regex         
+        // make rss id regex
         var wRegex =  /\/QueueRSS\?id=(\w+)"/;
-        
-        // set response 
+
+        // set response
 	var responseTxt = rep.responseText;
 
-        // run regex. put matched values in array 
+        // run regex. put matched values in array
         movieLinePat = responseTxt.match(wRegex);
 
         if (movieLinePat != null) {
@@ -648,22 +653,22 @@ function getRssId() {
         } else {
           sessionStorage.setItem('NqsNetflixRssId', "null");
           console.log('Failed to find RSS Url ID with RegEx');
-        } 
+        }
       } else {
           // response was non-ok log error
-          repInfo(rep,"Non OK response from Netflix server getting RSS id."); 
+          repInfo(rep,"Non OK response from Netflix server getting RSS id.");
       }
     }
   });
 }
-                    
+
 function getQueue() {
-  // if we don't have rssid then bail 
+  // if we don't have rssid then bail
   if (haveRssId() === false) { return null; }
 
   var rssId = sessionStorage.getItem('NqsNetflixRssId');
   var rssUrl = "https://dvd.netflix.com/QueueRSS?id=" + rssId;
-  
+
   // make the http request to netflix
   GM_xmlhttpRequest({
     method: "GET",
@@ -679,14 +684,14 @@ function getQueue() {
 
         // copy response obj
 	var responseTxt = rep.responseText;
-        
+
         // regex for grabbing movie title lines in rss
         var rssTitleLineRegex = /<title>\d+.*<\/title>/g;
 
         // regex for pulling just movie title
         var rssTitleRegex = /<title>\d+- (.*?)<\/title>/;
-        
-        // run regex, put matched title lines in array 
+
+        // run regex, put matched title lines in array
         movieLinePat = responseTxt.match(rssTitleLineRegex);
 
         // if regex worked store movie names, else log error and just add icons
@@ -710,9 +715,9 @@ function getQueue() {
             // add icons
             addIcons();
           }
-          
-        // regex failed to get movie title log error          
-        } else { 
+
+        // regex failed to get movie title log error
+        } else {
             console.log("The Netflix queue RegEx is broken");
         }
 
@@ -792,7 +797,7 @@ function showBox(event,boxBody) {
 
   // if correct button id exists attach listener
   var gIdStat = document.getElementById('nqsstatus');
-  if (gIdStat != null) { 
+  if (gIdStat != null) {
     gIdStat.addEventListener("click",
                              function(event){addToQueue(event)},
                              false);
@@ -871,9 +876,8 @@ function addToQueue (event) {
           // show the error popup
           var msg = 'Non-OK response from Netflix when trying' +
                     'to add move to queue.'
-          showErrorBox(msg,event); 
+          showErrorBox(msg,event);
       }
     }
   });
 }
-
